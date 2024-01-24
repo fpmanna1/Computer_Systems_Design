@@ -1,0 +1,213 @@
+00000000                                     1  ****************AREA DATI*********************************
+00000000                                     2  
+00008000                                     3  		ORG 		$8000
+00008000                                     4  
+00008000  =00000003                          5  K		EQU		3
+00008000  =00000003                          6  N		EQU		3
+00008000                                     7  MSG		DS.B		K*N*3
+0000801B                                     8  
+0000801B  00                                 9  LOCK		DC.B		0
+0000801C  00                                10  TURNO		DC.B		0
+0000801D                                    11  
+0000801D  00                                12  SOSPB		DC.B		0
+0000801E  00                                13  SOSPC		DC.B		0
+0000801F                                    14  
+0000801F  00                                15  C_MSG_B	DC.B		0
+00008020  00                                16  C_MSG_C	DC.B		0
+00008021  00                                17  CNT		DC.B		0
+00008022  00                                18  C_CHAR	DC.B		0
+00008023                                    19  
+00008023  00                                20  N_ITER		DC.B		0
+00008024                                    21  
+00008024  =00002004                         22  PIADA_B	EQU		$2004
+00008024  =00002005                         23  PIACA_B	EQU		$2005
+00008024                                    24  
+00008024  =00002008                         25  PIADA_C	EQU		$2008
+00008024  =00002009                         26  PIACA_C	EQU		$2009
+00008024                                    27  
+00008024                                    28  
+00008024                                    29  *******************AREA MAIN**********************************
+00008024                                    30  
+00008200                                    31  		ORG		$8200
+00008200  40C0                              32  MAIN		MOVE.W	SR,D0			*LEGGE IL REGISTRO DI STATO
+00008202  0240 D8FF                         33  		ANDI.W		#$D8FF,D0		*MASCHERA (STATO UTENTE E INT ABILITATE)
+00008206  46C0                              34  		MOVE.W	D0,SR
+00008208  4EB9 0000821A                     35  		JSR		IPIA_B
+0000820E  4EB9 0000822E                     36  		JSR		IPIA_C
+00008214  4EF9 00008214                     37  LOOP		JMP		LOOP
+0000821A                                    38  
+0000821A                                    39  
+0000821A  11FC 0000 2005                    40  IPIA_B		MOVE.B	#0,PIACA_B		*SELEZIONA IL REGISTRO DIREZIONE DI DELLA PIA
+00008220  11FC 0000 2004                    41  		MOVE.B	#0,PIADA_B		*ACCEDE A DDR E PONE LA DIREZIONE AD INPUT
+00008226  11FC 0025 2005                    42  		MOVE.B	#%00100101,PIACA_B	*SENSIBILE AL FRONTE DI DISCESA E INTERRUZIONI ABILITATE
+0000822C  4E75                              43  		RTS
+0000822E                                    44  
+0000822E  11FC 0000 2009                    45  IPIA_C		MOVE.B	#0,PIACA_C
+00008234  11FC 0000 2008                    46  		MOVE.B	#0,PIADA_C
+0000823A  11FC 0025 2009                    47  		MOVE.B	#%00100101,PIACA_C
+00008240  4E75                              48  		RTS
+00008242                                    49  
+00008242                                    50  *******************ISR NODO B********************************
+00008242                                    51  
+00008700                                    52  		ORG		$8700
+00008700  48E7 FFFE                         53  ISR_B		MOVEM.L	D0-D7/A0-A6,-(A7)
+00008704  4AF9 0000801B                     54  		TAS		LOCK
+0000870A  6600 0008                         55  		BNE		BSOSP
+0000870E                                    56  
+0000870E  4EF9 00008722                     57  		JMP		F_B
+00008714                                    58  
+00008714  13FC 0001 0000801D                59  BSOSP		MOVE.B	#1,SOSPB
+0000871C  4CDF 7FFF                         60  RIT21		MOVEM.L	(A7)+,D0-D7/A0-A6
+00008720  4E73                              61  		RTE
+00008722                                    62  
+00008722  0C39 0002 0000801C                63  F_B		CMPI.B		#2,TURNO	*CONTROLLO SE IL TURNO E'  LIBERO
+0000872A  6700 00E8                         64  		BEQ		RISV_C		*SE E' DI C, MI SOSPENDO E VEDO SE ERA SOSPESO C
+0000872E                                    65  
+0000872E  0C39 0002 0000801F                66  		CMPI.B		#2,C_MSG_B	*VERIFICO CHE B NON ABBIA GIA INVIATO 2 MESSAGGI, IN TAL CASO LO SOSPENDO
+00008736  6700 00BA                         67  		BEQ		PASSA_C
+0000873A  13FC 0001 0000801C                68  		MOVE.B	#1,TURNO	*SE NON E DI C, LO PRENDE B
+00008742  13FC 0000 0000801D                69  		MOVE.B	#0,SOSPB
+0000874A                                    70  
+0000874A                                    71  		* LETTURA DALLA PIA
+0000874A  227C 00002004                     72  		MOVEA.L	#PIADA_B,A1	*LEGGO IL CHAR DALLA PIA DI B
+00008750  207C 00008000                     73  		MOVEA.L	#MSG,A0
+00008756  1039 00008021                     74  		MOVE.B	CNT,D0
+0000875C  1191 0000                         75  		MOVE.B	(A1),(A0,D0)
+00008760                                    76  
+00008760  5239 00008021                     77  		ADDI.B		#1,CNT 		* INCREMENTO IL CONTATORE DEI CARATTERI GLOBALI RICEVUTI
+00008766  5239 00008022                     78  		ADDI.B		#1,C_CHAR 	* INCREMENTO IL CONTATORE DEI CARATTERI DEL SINGOLO MESSAGGIO
+0000876C                                    79  	
+0000876C  0C39 0003 00008022                80  		CMPI.B		#N,C_CHAR	* VERIFICO SE B HA INVIATO TUTTI I CHAR DEL MESSAGGIO
+00008774  6600 00E0                         81  		BNE		UNLOCK	
+00008778                                    82  
+00008778  5239 0000801F                     83  		ADDI.B		#1,C_MSG_B     * INCREMENTO IL CONTATORE DEI MESSAGGI INVIATI DA B
+0000877E  13FC 0000 00008022                84  		MOVE.B	#0,C_CHAR
+00008786  0C39 0002 0000801F                85  		CMPI.B		#2,C_MSG_B		*CONTROLLO SE B HA INVIATO ENTRAMBI
+0000878E  6600 0046                         86  		BNE		LIB1			*SE NE HA INVIATO SOLO 1 ALLORA LIBERO IL TURNO PER CHIUNQUE
+00008792                                    87  
+00008792  0C39 0001 00008020                88  		CMPI.B		#1,C_MSG_C		*SE HA FINITO, VEDO SE C HA GIA INVIATO IL SUO MESSAGGIO
+0000879A  6600 0056                         89  		BNE		PASSA_C		*SE NON HA INVIATO C, ALLORA GLI PASSO GIA IL TURNOO
+0000879E                                    90  
+0000879E  5239 00008023                     91  		ADDI.B		#1,N_ITER		*SE HANNO FINITO ENTRAMBI, AUMENTO IL NUMERO DI ITERAZIONI E RESETTO I CONTATORI
+000087A4  13FC 0000 0000801F                92  		MOVE.B	#0,C_MSG_B
+000087AC  13FC 0000 00008020                93  		MOVE.B	#0,C_MSG_C
+000087B4  13FC 0000 0000801C                94  		MOVE.B	#0,TURNO
+000087BC  13FC 0000 0000801B                95  		MOVE.B	#0,LOCK
+000087C4                                    96  
+000087C4  0C39 0003 00008023                97  		CMPI.B		#K,N_ITER		* CONTROLLO SE HO COMPLETATO TUTTE LE K ITERAZIONI
+000087CC  6700 0076                         98  		BEQ		DIS1			* SE E' COSì, DISATTIVA TUTTE LE PERIFERICHE
+000087D0  4EF9 0000885E                     99  		JMP		FINE
+000087D6                                   100  
+000087D6  13FC 0000 0000801C               101  LIB1		MOVE.B	#0,TURNO
+000087DE  13FC 0000 0000801B               102  		MOVE.B	#0,LOCK
+000087E6  0C39 0001 0000801E               103  		CMPI.B		#1,SOSPC
+000087EE  6000 FF2C                        104  		BRA		RIT21
+000087F2                                   105  
+000087F2  13FC 0002 0000801C               106  PASSA_C	MOVE.B	#2,TURNO		*DO IL TURNO A C E VERIFICO SE SI ERA SOSPESO
+000087FA  13FC 0000 0000801B               107  		MOVE.B	#0,LOCK
+00008802  0C39 0001 0000801E               108  CHECK_SOSP	CMPI.B		#1,SOSPC
+0000880A  6700 0008                        109  		BEQ		RISV_C		*SE ERA SOSPESO LO RIATTIVO
+0000880E  4EF9 0000885E                    110  		JMP		FINE			
+00008814                                   111  
+00008814  13FC 0001 0000801D               112  RISV_C		MOVE.B	#1,SOSPB
+0000881C  13FC 0000 0000801B               113  		MOVE.B	#0,LOCK
+00008824  0C39 0000 0000801E               114  		CMPI.B		#0,SOSPC
+0000882C  6700 0030                        115  		BEQ		FINE
+00008830  13FC 0000 0000801E               116  		MOVE.B	#0,SOSPC
+00008838  4EF9 00008922                    117  		JMP		F_C
+0000883E                                   118  
+0000883E  4EF9 0000885E                    119  		JMP		FINE
+00008844  11FC 0000 2005                   120  DIS1		MOVE.B	#0,PIACA_B
+0000884A  11FC 0000 2009                   121  		MOVE.B	#0,PIACA_C
+00008850  4EF9 0000885E                    122  		JMP		FINE
+00008856                                   123  
+00008856  13FC 0000 0000801B               124  UNLOCK	MOVE.B	#0,LOCK
+0000885E  6000 FEBC                        125  FINE		BRA		RIT21
+00008862                                   126  	
+00008862                                   127  
+00008862                                   128  
+00008862                                   129  	
+00008862                                   130  ********************ISR NODO C*****************
+00008862                                   131  
+00008900                                   132  		ORG		$8900
+00008900  48E7 FFFE                        133  ISR_C		MOVEM.L	D0-D7/A0-A6,-(A7)
+00008904  4AF9 0000801B                    134  		TAS		LOCK
+0000890A  6600 0008                        135  		BNE		CSOSP
+0000890E                                   136  
+0000890E                                   137  
+0000890E  4EF9 00008922                    138  		JMP		F_C
+00008914                                   139  
+00008914  13FC 0001 0000801E               140  CSOSP		MOVE.B	#1,SOSPC
+0000891C  4CDF 7FFF                        141  RIT2		MOVEM.L	(A7)+,D0-D7/A0-A6
+00008920  4E73                             142  		RTE
+00008922                                   143  
+00008922  0C39 0001 0000801C               144  F_C		CMPI.B		#1,TURNO	*CONTROLLO SE IL TURNO NON E'  DI B
+0000892A  6700 00DC                        145  		BEQ		RISV_B		*SE E DI B, MI SOSPENDO E VEDO SE ERA SOSPESO 
+0000892E                                   146  
+0000892E  0C39 0001 00008020               147  		CMPI.B		#1,C_MSG_C	*VERIFICO CHE C NON ABBIA GIA INVIATO IN TAL CASO LO SOSPENDO
+00008936  6700 00AE                        148  		BEQ		PASSA_B
+0000893A                                   149  
+0000893A  13FC 0002 0000801C               150  		MOVE.B	#2,TURNO	*SE IL TURNO NON E' DI B O E' LIBERO, LO PASSO A C
+00008942  13FC 0000 0000801E               151  		MOVE.B	#0,SOSPC
+0000894A                                   152  
+0000894A                                   153  		* LETTURA DALLA PIA
+0000894A  247C 00002008                    154  		MOVEA.L	#PIADA_C,A2
+00008950  267C 00008000                    155  		MOVEA.L	#MSG,A3
+00008956  1239 00008021                    156  		MOVE.B	CNT,D1
+0000895C  1792 1000                        157  		MOVE.B	(A2),(A3,D1)
+00008960                                   158  
+00008960  5239 00008021                    159  		ADDI.B		#1,CNT
+00008966  5239 00008022                    160  		ADDI.B		#1,C_CHAR
+0000896C                                   161  
+0000896C  0C39 0003 00008022               162  		CMPI.B		#N,C_CHAR	*VERIFICO SE C HA INVIATO TUTTI I CARATTERI
+00008974  6600 00D4                        163  		BNE		C_UNLOCK	*SE LI HA INVIATI TUTTI, RILASCIO IL LOCK
+00008978                                   164  
+00008978  5239 00008020                    165  		ADDI.B		#1,C_MSG_C
+0000897E  13FC 0000 00008022               166  		MOVE.B	#0,C_CHAR
+00008986  0C39 0002 0000801F               167  		CMPI.B		#2,C_MSG_B		*CONTROLLO SE B HA INVIATO ENTRAMBI I MESSAGGI
+0000898E  6600 003A                        168  		BNE		LIB2			*SE NE HA INVITATO SOLO 1 ALLORA DO IL TURNOO A B
+00008992                                   169  
+00008992  5239 00008023                    170  		ADDI.B		#1,N_ITER		*SE HANNO FINITO ENTRAMBI, AUMENTO L'N_ITERAZIONE E RESETTO
+00008998  13FC 0000 0000801F               171  		MOVE.B	#0,C_MSG_B
+000089A0  13FC 0000 00008020               172  		MOVE.B	#0,C_MSG_C
+000089A8  13FC 0000 0000801C               173  		MOVE.B	#0,TURNO
+000089B0  13FC 0000 0000801B               174  		MOVE.B	#0,LOCK
+000089B8                                   175  
+000089B8  0C39 0003 00008023               176  		CMPI.B		#K,N_ITER
+000089C0  6700 0076                        177  		BEQ		DIS2
+000089C4  4EF9 00008A52                    178  		JMP		END_C
+000089CA                                   179  
+000089CA  13FC 0000 0000801C               180  LIB2		MOVE.B	#0,TURNO
+000089D2  13FC 0000 0000801B               181  		MOVE.B	#0,LOCK
+000089DA  0C39 0001 0000801D               182  		CMPI.B		#1,SOSPB
+000089E2  6000 FF38                        183  		BRA		RIT2
+000089E6                                   184  
+000089E6  13FC 0001 0000801C               185  PASSA_B	MOVE.B	#1,TURNO		*DO IL TURNO A C E VERIFICO SE SI ERA SOSPESO
+000089EE  13FC 0000 0000801B               186  		MOVE.B	#0,LOCK
+000089F6                                   187  
+000089F6  0C39 0001 0000801D               188  CHK_SOSP	CMPI.B		#1,SOSPB
+000089FE  6700 0008                        189  		BEQ		RISV_B		*SE ERA SOSPESO B LO RIATTIVO
+00008A02  4EF9 00008A52                    190  		JMP		END_C		*SE NON ERA SOSPESO, GLI HO PASSATO IL TURNO E POI FINISCO C
+00008A08                                   191  
+00008A08  13FC 0001 0000801E               192  RISV_B		MOVE.B	#1,SOSPC
+00008A10  13FC 0000 0000801B               193  		MOVE.B	#0,LOCK
+00008A18  0C39 0000 0000801D               194  		CMPI.B		#0,SOSPB
+00008A20  6700 0030                        195  		BEQ		END_C
+00008A24  13FC 0000 0000801D               196  		MOVE.B	#0,SOSPB
+00008A2C  4EF9 00008722                    197  		JMP		F_B
+00008A32                                   198  
+00008A32  4EF9 00008A52                    199  		JMP		END_C
+00008A38                                   200  
+00008A38  11FC 0000 2005                   201  DIS2		MOVE.B	#0,PIACA_B
+00008A3E  11FC 0000 2009                   202  		MOVE.B	#0,PIACA_C
+00008A44  4EF9 00008A52                    203  		JMP		END_C
+00008A4A                                   204  
+00008A4A  13FC 0000 0000801B               205  C_UNLOCK	MOVE.B	#0,LOCK
+00008A52  6000 FEC8                        206  END_C		BRA		RIT2
+00008A56                                   207  	
+00008A56                                   208  
+00008A56                                   209  	
+00008A56                                   210  		END	MAIN
+
+No errors detected
+No warnings generated

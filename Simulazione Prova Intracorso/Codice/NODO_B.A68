@@ -1,0 +1,102 @@
+**********
+*SECONDO TRASMETTITORE
+		ORG		$8000
+MES		DC.B		$B1,$B2,$B3,$B4,$B5,$B6,$B7,$B8,$B9,$BA,$BB,$BC,$BD,$BE,$BF,$B1,$B2,$B3
+DIM		DC.B		18 * 18 caratteri da un byte
+SIZE		DC.B		1
+CNTB		DC.B		0
+VAR		DC.B		0
+
+PIADB		EQU		$2006 * Porto trasmissione PIA
+PIACB		EQU		$2007
+
+
+		ORG		$8200
+INIT		JSR		INIZIALIZZA
+	
+WAIT		ADDI.B		#1,VAR
+		CMPI.B	#4,VAR  * Ciclo di attesa per attendere la configurazione della PIA in ricezione del nodo A
+		BNE		WAIT
+		MOVE.B	#0,VAR
+
+		MOVEA.L	#PIADB,A0
+	
+		MOVE.B	(A0),D0		*Lettura fittizia per far abbassare CB7
+		MOVE.B	DIM,(A0)	*invio della dimensione
+
+		MOVE.W	SR,D1
+		ANDI.W	#$D8FF,D1	*maschera per le interruzioni. 
+		MOVE.W	D1,SR
+
+LOOP		JMP		LOOP
+
+
+INIZIALIZZA	* Configurazione della PIA in trasmissione
+		MOVE.B	#0,PIACB
+		MOVE.B	#$FF,PIADB
+		MOVE.B	#%00100101,PIACB
+		RTS
+
+*interruzione livello	4 mappato a $70
+
+		ORG		$8900
+
+INT4		MOVE.L	A0,-(A7)
+		MOVE.L	A1,-(A7)
+		MOVE.L	D0,-(A7)
+		MOVE.L	D1,-(A7)
+		MOVE.L	D2,-(A7)
+
+		CLR		D0
+		CLR		D1
+		CLR		D2
+		MOVEA.L	#PIADB,A0
+		MOVEA.L	#MES,A1
+		MOVE.B	SIZE,D0
+		MOVE.B	CNTB,D1 	* contatore caratteri inviati
+	
+		*Lettura fittizia
+		MOVE.B	(A0),D2		*Cosi posso riusare D2
+	
+	
+		MOVE.B	DIM,D2
+		MULU		D0,D2		*Dimensione totale dei byte da inviare, numero byte del singolo carattere * numero di caratteri da inviare
+
+		CMP.B		D1,D2		*un controllo su D2 per capire quando finisce la trasmissione 
+		BEQ		RIPRISTINO
+
+		ADDA		D1,A1		* mi sposto sul prossimo carattere da inviare
+		MOVE.B	(A1),(A0)	* scrittura nel registro dati della PIA
+		ADD.B		#1,D1		* incremento il numero di caratteri inviati
+		CMP.B		D1,D2
+		BNE		FUORI
+	
+
+FUORI	
+		MOVE.B	D1,CNTB
+RIPRISTINO
+		MOVE.L	(A7)+,D2
+		MOVE.L	(A7)+,D1
+		MOVE.L	(A7)+,D0
+		MOVE.L	(A7)+,A1
+		MOVE.L	(A7)+,A0
+	
+		RTE
+		END		INIT
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

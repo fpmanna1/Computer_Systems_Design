@@ -1,0 +1,76 @@
+DESCRIZIONE FUNZIONAMENTO PROGETTO
+Trigger: pin di input
+Echo: pin di output
+
+Il pin di Trigger viene usato per far iniziare la misura al sensore ultrasuoni, inviando il burst.
+Quando vogliamo ottenere una distanza dal sensore, applichiamo un impulso di 10us verso questo pin.
+
+Il pin di Echo, quando è in IDLE, rimane la livello attivo basso.
+Il circuito di trasmissione converte un segnale elettrico in un burst di 8 onde sonore a 48 KHz. Il segnale elettrico di input verso il pin di trigger deve essere mantenuto per 10 us.
+
+Noi dunque applichiamo un impulso di 10 us verso il pin di trigger. Dopo questo tempo, il segnale di trigger diventa attivo basso e il circuito di trasmissione produce il burst di 8 impulsi ultrasonici. Contemporaneamente, il pin di echo fa la transizione 0->1 e metto il valore del timer in val1. 
+
+Appena il circuito di ricezione riceve l'impulso ultrasonico, il pin di Echo diventa basso (transizione 1->0) e salvo il conteggio del timer in val2.
+
+
+
+POLARITA' DEL TIMER
+
+La funzione __HAL_TIM_SET_CAPTUREPOLARITY è una funzione fornita dalla libreria HAL (Hardware Abstraction Layer) di STM32 per configurare la polarità di cattura di un canale di un timer (TIM). Questa funzione è utilizzata per specificare se la cattura deve essere effettuata su un fronte di salita o discesa del segnale sul canale del timer.
+
+In generale, la polarità di cattura è una configurazione importante quando si utilizza un timer per misurare il tempo tra eventi esterni, come il fronte di un segnale generato da un sensore o un dispositivo esterno. Ecco come funziona:
+
+TIM (Timer): Un timer è un componente hardware che genera impulsi di clock interni e può essere utilizzato per misurare il tempo tra eventi o generare segnali temporizzati.
+
+Canali di cattura: I timer hanno uno o più canali di cattura che possono essere configurati per catturare il valore corrente del timer quando si verifica un evento esterno, come un cambiamento di stato di un segnale.
+
+Polarità di cattura: La polarità di cattura definisce su quale fronte del segnale esterno (fronte di salita o discesa) il timer deve effettuare la cattura del valore del timer.
+
+La funzione __HAL_TIM_SET_CAPTUREPOLARITY consente di configurare questa polarità di cattura. Di solito, si chiama questa funzione due volte per un determinato canale di cattura: una volta per configurare la polarità sul fronte di salita e una volta per configurarla sul fronte di discesa, a seconda delle esigenze dell'applicazione.
+
+Ecco un esempio di utilizzo:
+
+__HAL_TIM_SET_CAPTUREPOLARITY(htim, TIM_CHANNEL_1, TIM_INPUTCHANNELPOLARITY_RISING);
+In questo esempio, stiamo configurando il canale 1 del timer htim in modo che effettui la cattura del valore del timer solo sul fronte di salita del segnale sul canale 1. Cambiando TIM_INPUTCHANNELPOLARITY_RISING in TIM_INPUTCHANNELPOLARITY_FALLING, puoi configurare il timer per catturare sul fronte di discesa.
+
+In sostanza, __HAL_TIM_SET_CAPTUREPOLARITY è una funzione utilizzata per configurare il timer in modo da catturare valori di timer in risposta a specifici eventi esterni in base al fronte (salita o discesa) del segnale esterno.
+
+
+PIN UTILIZZATI SULLA NUCLEO
+Timer->Echo PA8
+GPIO->Trigger PB10
+LED1 PA5
+
+Linea Interrupt PB10 -> EXTI10
+Linea Interrupt USART -> EXTI2
+
+USART_2_TX mappato su PA2
+USART_2_RX mappato su PA3
+
+USART_6_TX mappato su PC6
+USART_6_RX mappato su PC7
+
+USART2 IN TX E USART6 IN RX
+
+PIN UTILIZZATI SULLA DISCOVERY
+Timer->Echo  PE9
+GPIO->Trigger PC7
+LED6 PE15 verde
+
+USART_1_TX mappato su PC4
+USART_1_RX mappato su PC5
+
+
+riga 2622, file stm32f4xx_hal_uart.c RxCpltCallback
+
+le callback sono definite come weak, quindi ridefinendole è possibile personalizzare completamente il comportamento del device a seconda della particolare applicazione
+
+
+The HAL_TIM_IC_CaptureCallback is a callback function used in the HAL (Hardware Abstraction Layer) of the STM32Cube HAL library. This callback function is associated with the TIM (Timer) peripheral and is used for handling interrupt events related to input capture operations. Input capture is a feature of timers in microcontrollers that allows you to capture the value of a counter when a specific event occurs on an input pin, such as a rising or falling edge of a signal.
+
+
+
+Timer Input Capture ICU 
+We can also use the input capture unit (mode) of timer modules to capture the time at which the echo pulse goes HIGH and LOW. Start with programming the ICU to capture the TimerX value at the rising edge of the input pin. When the echo pulse arrives, the TimerX value is captured to the CCR1 register, so we’ve T1. The capture event fires an interrupt signal that should be activated because we need to flip the capture edge to be on the falling edge.
+
+When the echo pin goes LOW, the TimerX value is captured and we’ve got T2. Therefore, we can say that the total pulse width T = T2-T1. And use that information to calculate the distance easily.
